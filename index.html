@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRIP.FIND</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080808;
+    --surface: #0f0f0f;
+    --card: #131313;
+    --border: #1e1e1e;
+    --border-light: #2a2a2a;
+    --accent: #ff2d00;
+    --accent-glow: rgba(255,45,0,0.15);
+    --cyan: #00f5d4;
+    --gold: #fbbf24;
+    --text: #efefef;
+    --muted: #555;
+    --muted2: #333;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+    cursor: default;
+  }
+
+  /* Scanline overlay */
+  body::after {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,0,0,0.03) 2px,
+      rgba(0,0,0,0.03) 4px
+    );
+    pointer-events: none;
+    z-index: 9998;
+  }
+
+  /* ─── NAV ─── */
+  nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 48px;
+    height: 64px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: rgba(8,8,8,0.92);
+    backdrop-filter: blur(20px);
+    z-index: 500;
+  }
+
+  .logo {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 6px;
+    color: var(--text);
+  }
+  .logo .dot { color: var(--accent); }
+
+  .nav-right {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+  }
+
+  .cat-filters {
+    display: flex;
+    gap: 4px;
+  }
+
+  .cat-btn {
+    padding: 6px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: transparent;
+    color: var(--muted);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 1px;
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+  .cat-btn:hover { color: var(--text); border-color: var(--border-light); }
+  .cat-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  .results-badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--muted);
+    padding: 6px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+  }
+
+  /* ─── ONBOARDING ─── */
+  #onboarding {
+    min-height: calc(100vh - 64px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bg-grid {
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,45,0,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,45,0,0.03) 1px, transparent 1px);
+    background-size: 60px 60px;
+    mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 40%, transparent 100%);
+  }
+
+  .hero-eyebrow {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 5px;
+    color: var(--accent);
+    margin-bottom: 28px;
+    opacity: 0;
+    animation: up 0.5s 0.1s forwards;
+  }
+
+  .hero-h1 {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: clamp(72px, 13vw, 148px);
+    line-height: 0.88;
+    text-align: center;
+    letter-spacing: 3px;
+    margin-bottom: 28px;
+    opacity: 0;
+    animation: up 0.5s 0.25s forwards;
+  }
+
+  .hero-h1 .stroke {
+    -webkit-text-stroke: 1.5px rgba(255,255,255,0.25);
+    color: transparent;
+  }
+
+  .hero-h1 .fire { color: var(--accent); }
+
+  .hero-sub {
+    font-size: 15px;
+    color: var(--muted);
+    text-align: center;
+    max-width: 380px;
+    line-height: 1.7;
+    margin-bottom: 56px;
+    opacity: 0;
+    animation: up 0.5s 0.4s forwards;
+  }
+
+  /* QUIZ */
+  .quiz-wrap {
+    width: 100%;
+    max-width: 600px;
+    opacity: 0;
+    animation: up 0.5s 0.55s forwards;
+  }
+
+  .quiz-step { display: none; }
+  .quiz-step.active { display: block; }
+
+  .step-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 28px;
+    justify-content: center;
+  }
+
+  .step-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: var(--border-light);
+    transition: all 0.3s;
+  }
+  .step-dot.done { background: var(--accent); }
+  .step-dot.current { background: var(--cyan); width: 20px; border-radius: 3px; }
+
+  .quiz-q {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    text-align: center;
+    margin-bottom: 22px;
+  }
+
+  .quiz-opts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    justify-content: center;
+    margin-bottom: 36px;
+  }
+
+  .qopt {
+    padding: 11px 22px;
+    border: 1px solid var(--border-light);
+    border-radius: 10px;
+    background: var(--surface);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s;
+    user-select: none;
+  }
+
+  .qopt:hover { border-color: var(--cyan); color: var(--cyan); }
+  .qopt.sel { border-color: var(--accent); background: rgba(255,45,0,0.08); color: var(--accent); }
+
+  .btn-go {
+    display: block;
+    width: 100%;
+    padding: 18px;
+    border: none;
+    border-radius: 12px;
+    background: var(--accent);
+    color: #fff;
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 20px;
+    letter-spacing: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .btn-go::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .btn-go:hover { transform: translateY(-2px); box-shadow: 0 12px 32px rgba(255,45,0,0.35); }
+  .btn-go:hover::before { opacity: 1; }
+
+  /* ─── MAIN APP ─── */
+  #app {
+    display: none;
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 36px 48px 80px;
+    animation: up 0.4s forwards;
+  }
+
+  /* PROFILE PILL */
+  .profile-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 32px;
+    padding: 14px 20px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+  }
+
+  .profile-label {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+
+  .profile-chips {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  .pchip {
+    padding: 4px 12px;
+    background: rgba(251,191,36,0.08);
+    border: 1px solid rgba(251,191,36,0.25);
+    border-radius: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--gold);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  .reset-btn {
+    margin-left: auto;
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 6px 14px;
+    border-radius: 6px;
+    font-size: 11px;
+    cursor: pointer;
+    font-family: 'Syne', sans-serif;
+    transition: all 0.18s;
+  }
+  .reset-btn:hover { color: var(--text); border-color: var(--border-light); }
+
+  /* SEARCH BAR */
+  .search-wrap {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 28px;
+    align-items: center;
+  }
+
+  .search-field {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    padding: 18px 24px;
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+  }
+
+  .search-field::placeholder { color: var(--muted); font-weight: 400; }
+  .search-field:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+  }
+
+  .search-go {
+    width: 58px; height: 58px;
+    border-radius: 14px;
+    border: none;
+    background: var(--accent);
+    color: #fff;
+    font-size: 22px;
+    cursor: pointer;
+    transition: all 0.18s;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+
+  .search-go:hover { transform: scale(1.06); box-shadow: 0 8px 24px rgba(255,45,0,0.4); }
+
+  /* TRENDING */
+  .trending-row {
+    margin-bottom: 40px;
+  }
+
+  .section-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 4px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-tag::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .trend-pills {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+
+  .tpill {
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.18s;
+  }
+
+  .tpill:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: var(--accent-glow);
+  }
+
+  /* LOADING */
+  .loader {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 100px 40px;
+    gap: 24px;
+  }
+
+  .loader-ring {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    animation: spin 0.8s linear infinite;
+  }
+
+  .loader-txt {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 3px;
+    color: var(--muted);
+    animation: pulse 1.2s ease-in-out infinite;
+  }
+
+  /* RESULTS */
+  .results-section { display: none; }
+
+  .results-meta {
+    display: flex;
+    align-items: baseline;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  .results-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 42px;
+    letter-spacing: 2px;
+    line-height: 1;
+  }
+
+  .results-sub {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* PRODUCT GRID */
+  .products-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  /* PRODUCT CARD */
+  .pcard {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.22s cubic-bezier(0.25, 0.8, 0.25, 1);
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    transform: translateY(16px);
+    animation: cardIn 0.35s forwards;
+  }
+
+  .pcard:hover {
+    border-color: rgba(255,45,0,0.4);
+    transform: translateY(-6px);
+    box-shadow: 0 24px 48px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,45,0,0.15);
+  }
+
+  .pcard-img {
+    width: 100%;
+    aspect-ratio: 1 / 1;
+    background: #0e0e0e;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .pcard-img img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.4s ease;
+  }
+
+  .pcard:hover .pcard-img img { transform: scale(1.06); }
+
+  .pcard-img .img-placeholder {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 56px;
+    background: linear-gradient(135deg, #111 0%, #181818 100%);
+  }
+
+  .store-tag {
+    position: absolute;
+    bottom: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(6px);
+    border: 1px solid var(--border-light);
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: var(--text);
+  }
+
+  .badge-sale {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: var(--accent);
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 1px;
+    color: #fff;
+  }
+
+  .pcard-body {
+    padding: 16px 18px 18px;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  .pcard-source {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 7px;
+    text-transform: uppercase;
+  }
+
+  .pcard-name {
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.35;
+    color: var(--text);
+    flex: 1;
+    margin-bottom: 14px;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .pcard-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .pcard-price {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 26px;
+    letter-spacing: 1px;
+    color: var(--text);
+    line-height: 1;
+  }
+
+  .pcard-price.has-sale { color: var(--accent); }
+
+  .shop-btn {
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: var(--surface);
+    border: 1px solid var(--border-light);
+    color: var(--text);
+    font-size: 12px;
+    font-weight: 700;
+    transition: all 0.18s;
+    white-space: nowrap;
+  }
+
+  .pcard:hover .shop-btn {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+
+  /* RATING STARS */
+  .pcard-rating {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 10px;
+  }
+
+  .stars { color: var(--gold); font-size: 11px; }
+  .rating-count { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--muted); }
+
+  /* ERROR / EMPTY */
+  .empty-state {
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 100px 40px;
+    gap: 16px;
+    text-align: center;
+  }
+
+  .empty-icon { font-size: 52px; }
+  .empty-title {
+    font-family: 'Bebas Neue', sans-serif;
+    font-size: 32px;
+    letter-spacing: 2px;
+  }
+  .empty-sub { font-size: 14px; color: var(--muted); }
+
+  /* ANIMATIONS */
+  @keyframes up {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes cardIn {
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.4; }
+    50% { opacity: 1; }
+  }
+
+  /* RESPONSIVE */
+  @media (max-width: 768px) {
+    nav { padding: 0 20px; }
+    #app { padding: 24px 20px 60px; }
+    .hero-h1 { font-size: 64px; }
+    .products-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+    .cat-filters { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ─── NAV ─── -->
+<nav>
+  <div class="logo">DRIP<span class="dot">.</span>FIND</div>
+  <div class="nav-right">
+    <div class="cat-filters" id="nav-cats" style="display:none">
+      <button class="cat-btn active" onclick="setCat('all',this)">ALL</button>
+      <button class="cat-btn" onclick="setCat('sneakers',this)">SNEAKERS</button>
+      <button class="cat-btn" onclick="setCat('clothes',this)">CLOTHES</button>
+      <button class="cat-btn" onclick="setCat('electronics',this)">TECH</button>
+      <button class="cat-btn" onclick="setCat('jewelry',this)">JEWELRY</button>
+    </div>
+    <div class="results-badge" id="results-badge" style="display:none">0 RESULTS</div>
+  </div>
+</nav>
+
+<!-- ─── ONBOARDING ─── -->
+<section id="onboarding">
+  <div class="bg-grid"></div>
+  <div class="hero-eyebrow">SMART SHOPPING DISCOVERY</div>
+  <h1 class="hero-h1">
+    FIND <span class="fire">YOUR</span><br>
+    <span class="stroke">DRIP</span> FAST
+  </h1>
+  <p class="hero-sub">Real products. Real prices. Every major store — at once.</p>
+
+  <div class="quiz-wrap">
+    <!-- Step indicators -->
+    <div class="step-indicator" id="step-dots">
+      <div class="step-dot current" id="sd1"></div>
+      <div class="step-dot" id="sd2"></div>
+      <div class="step-dot" id="sd3"></div>
+    </div>
+
+    <!-- Step 1 -->
+    <div class="quiz-step active" id="qs1">
+      <div class="quiz-q">STEP 01 — WHAT'S YOUR STYLE?</div>
+      <div class="quiz-opts">
+        <div class="qopt" data-v="streetwear">Streetwear</div>
+        <div class="qopt" data-v="athletic">Athletic</div>
+        <div class="qopt" data-v="luxury">Luxury</div>
+        <div class="qopt" data-v="casual">Casual</div>
+        <div class="qopt" data-v="techwear">Techwear</div>
+        <div class="qopt" data-v="prep">Clean Prep</div>
+      </div>
+      <button class="btn-go" onclick="goStep(2)">NEXT →</button>
+    </div>
+
+    <!-- Step 2 -->
+    <div class="quiz-step" id="qs2">
+      <div class="quiz-q">STEP 02 — FAVORITE BRANDS?</div>
+      <div class="quiz-opts">
+        <div class="qopt" data-v="nike">Nike</div>
+        <div class="qopt" data-v="jordan">Jordan</div>
+        <div class="qopt" data-v="adidas">Adidas</div>
+        <div class="qopt" data-v="new balance">New Balance</div>
+        <div class="qopt" data-v="supreme">Supreme</div>
+        <div class="qopt" data-v="apple">Apple</div>
+        <div class="qopt" data-v="samsung">Samsung</div>
+        <div class="qopt" data-v="essentials">Essentials</div>
+      </div>
+      <button class="btn-go" onclick="goStep(3)">NEXT →</button>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="quiz-step" id="qs3">
+      <div class="quiz-q">STEP 03 — BUDGET?</div>
+      <div class="quiz-opts">
+        <div class="qopt" data-v="under $50">Under $50</div>
+        <div class="qopt" data-v="$50-$150">$50 – $150</div>
+        <div class="qopt" data-v="$150-$400">$150 – $400</div>
+        <div class="qopt" data-v="$400+">$400+</div>
+      </div>
+      <button class="btn-go" onclick="launch()">LET'S GO 🔥</button>
+    </div>
+  </div>
+</section>
+
+<!-- ─── MAIN APP ─── -->
+<section id="app">
+  <!-- Profile bar -->
+  <div class="profile-row" id="profile-row">
+    <div class="profile-label">YOUR VIBE</div>
+    <div class="profile-chips" id="profile-chips"></div>
+    <button class="reset-btn" onclick="resetApp()">↩ RESET</button>
+  </div>
+
+  <!-- Search -->
+  <div class="search-wrap">
+    <input class="search-field" id="searchInput" type="text"
+      placeholder='Try "Jordan 4 Bred", "AirPods Pro", "Nike Tech Fleece"...'
+      onkeydown="if(event.key==='Enter') runSearch()">
+    <button class="search-go" onclick="runSearch()">🔍</button>
+  </div>
+
+  <!-- Trending -->
+  <div class="trending-row" id="trendRow">
+    <div class="section-tag">TRENDING NOW</div>
+    <div class="trend-pills" id="trendPills"></div>
+  </div>
+
+  <!-- Loader -->
+  <div class="loader" id="loader">
+    <div class="loader-ring"></div>
+    <div class="loader-txt" id="loaderTxt">SCANNING STORES...</div>
+  </div>
+
+  <!-- Results -->
+  <div class="results-section" id="resultsSection">
+    <div class="results-meta">
+      <div class="results-title" id="resultsTitle">RESULTS</div>
+      <div class="results-sub" id="resultsSub"></div>
+    </div>
+    <div class="products-grid" id="productsGrid"></div>
+  </div>
+
+  <!-- Empty -->
+  <div class="empty-state" id="emptyState">
+    <div class="empty-icon">🔍</div>
+    <div class="empty-title">NO RESULTS FOUND</div>
+    <div class="empty-sub">Try something else — "Jordan", "AirPods", "hoodie"</div>
+  </div>
+</section>
+
+<script>
+// ─── CONFIG ───
+// Calls our Netlify serverless function — no CORS issues
+const PROXY = '/.netlify/functions/search';
+
+// ─── STATE ───
+const profile = { styles: [], brands: [], budget: '' };
+let activeCat = 'all';
+let currentQuery = '';
+
+// ─── QUIZ ───
+function initStep(stepEl) {
+  stepEl.querySelectorAll('.qopt').forEach(o => {
+    o.addEventListener('click', () => o.classList.toggle('sel'));
+  });
+}
+
+document.querySelectorAll('.quiz-step').forEach(initStep);
+
+function goStep(n) {
+  const prev = document.querySelector('.quiz-step.active');
+  if (n === 2) profile.styles = [...prev.querySelectorAll('.qopt.sel')].map(o => o.dataset.v);
+  if (n === 3) profile.brands = [...prev.querySelectorAll('.qopt.sel')].map(o => o.dataset.v);
+
+  prev.classList.remove('active');
+  document.getElementById('qs' + n).classList.add('active');
+
+  // Update dots
+  for (let i = 1; i <= 3; i++) {
+    const d = document.getElementById('sd' + i);
+    if (i < n) { d.className = 'step-dot done'; }
+    else if (i === n) { d.className = 'step-dot current'; }
+    else { d.className = 'step-dot'; }
+  }
+}
+
+function launch() {
+  const prev = document.querySelector('.quiz-step.active');
+  const bSel = prev.querySelector('.qopt.sel');
+  profile.budget = bSel ? bSel.dataset.v : '';
+
+  document.getElementById('onboarding').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  document.getElementById('nav-cats').style.display = 'flex';
+
+  buildProfile();
+  buildTrending();
+
+  // Auto-search based on brands
+  const autoQ = profile.brands.length ? profile.brands[0] : (profile.styles[0] || '');
+  if (autoQ) {
+    document.getElementById('searchInput').value = autoQ;
+    runSearch();
+  }
+}
+
+function buildProfile() {
+  const chips = [...profile.styles, ...profile.brands, profile.budget].filter(Boolean);
+  document.getElementById('profile-chips').innerHTML =
+    chips.length
+      ? chips.map(c => `<span class="pchip">${c}</span>`).join('')
+      : '<span class="pchip">ALL STYLES</span>';
+}
+
+function buildTrending() {
+  const base = ['Jordan 4 Bred', 'Nike Dunk Low', 'AirPods Pro', 'Essentials Hoodie', 'Nike Tech Fleece', 'PS5 Slim', 'New Balance 990', 'Yeezy Slide', 'Apple Watch', 'Cuban Link Chain'];
+  const sorted = profile.brands.length
+    ? [...profile.brands.map(b => b.charAt(0).toUpperCase() + b.slice(1) + ' shoes'), ...base].slice(0, 10)
+    : base;
+
+  document.getElementById('trendPills').innerHTML =
+    sorted.map(t => `<div class="tpill" onclick="quickSearch('${t}')">${t}</div>`).join('');
+}
+
+function quickSearch(q) {
+  document.getElementById('searchInput').value = q;
+  runSearch();
+}
+
+function setCat(cat, el) {
+  activeCat = cat;
+  document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  if (currentQuery) runSearch();
+}
+
+function resetApp() {
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('nav-cats').style.display = 'none';
+  document.getElementById('onboarding').style.display = 'flex';
+  // Reset quiz
+  document.querySelectorAll('.quiz-step').forEach(s => s.classList.remove('active'));
+  document.getElementById('qs1').classList.add('active');
+  document.querySelectorAll('.qopt').forEach(o => o.classList.remove('sel'));
+  for (let i = 1; i <= 3; i++) {
+    const d = document.getElementById('sd' + i);
+    d.className = i === 1 ? 'step-dot current' : 'step-dot';
+  }
+  Object.assign(profile, { styles: [], brands: [], budget: '' });
+  hideResults();
+}
+
+// ─── SEARCH ───
+const loaderMsgs = ['SCANNING STORES...', 'CHECKING PRICES...', 'FINDING DEALS...', 'COMPARING RESULTS...'];
+let loaderTimer;
+
+function showLoader() {
+  document.getElementById('loader').style.display = 'flex';
+  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('trendRow').style.display = 'none';
+  let i = 0;
+  loaderTimer = setInterval(() => {
+    document.getElementById('loaderTxt').textContent = loaderMsgs[i++ % loaderMsgs.length];
+  }, 600);
+}
+
+function hideLoader() {
+  clearInterval(loaderTimer);
+  document.getElementById('loader').style.display = 'none';
+}
+
+function hideResults() {
+  document.getElementById('resultsSection').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('results-badge').style.display = 'none';
+}
+
+async function runSearch() {
+  const q = document.getElementById('searchInput').value.trim();
+  if (!q) return;
+  currentQuery = q;
+
+  showLoader();
+
+  // Build query with category hint
+  let finalQ = q;
+  if (activeCat === 'sneakers') finalQ += ' sneakers shoes';
+  if (activeCat === 'clothes') finalQ += ' clothing apparel';
+  if (activeCat === 'electronics') finalQ += ' electronics';
+  if (activeCat === 'jewelry') finalQ += ' jewelry';
+
+  try {
+    const url = `${PROXY}?q=${encodeURIComponent(finalQ)}`;
+    const res = await fetch(url);
+
+    if (!res.ok) throw new Error('API error ' + res.status);
+
+    const data = await res.json();
+    hideLoader();
+
+    if (!data.shopping_results || !data.shopping_results.length) {
+      showEmpty();
+      return;
+    }
+
+    renderResults(data.shopping_results, q);
+
+  } catch (err) {
+    hideLoader();
+    console.error(err);
+    showEmpty(`API error: ${err.message}`);
+  }
+}
+
+function renderResults(items, query) {
+  const grid = document.getElementById('productsGrid');
+  const section = document.getElementById('resultsSection');
+  const badge = document.getElementById('results-badge');
+
+  document.getElementById('resultsTitle').textContent = `"${query.toUpperCase()}"`;
+  document.getElementById('resultsSub').textContent = `${items.length} PRODUCTS FOUND`;
+
+  badge.textContent = `${items.length} RESULTS`;
+  badge.style.display = 'block';
+
+  grid.innerHTML = items.map((item, idx) => {
+    const price = item.price || 'N/A';
+    const name = item.title || 'Product';
+    const source = (item.source || 'Store').toUpperCase();
+    const link = item.link || '#';
+    const img = item.thumbnail || '';
+    const rating = item.rating || null;
+    const reviews = item.reviews || null;
+    const hasSale = item.tag === 'Sale' || (item.extracted_price && item.old_price);
+
+    const stars = rating
+      ? '★'.repeat(Math.round(rating)) + '☆'.repeat(5 - Math.round(rating))
+      : '';
+
+    const imgHtml = img
+      ? `<img src="${img}" alt="${name}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=\\'img-placeholder\\'>🛍️</div>'">`
+      : `<div class="img-placeholder">🛍️</div>`;
+
+    return `
+      <a class="pcard" href="${link}" target="_blank" rel="noopener" style="animation-delay:${idx * 0.04}s">
+        <div class="pcard-img">
+          ${imgHtml}
+          <span class="store-tag">${source}</span>
+          ${hasSale ? '<span class="badge-sale">SALE</span>' : ''}
+        </div>
+        <div class="pcard-body">
+          <div class="pcard-source">${source}</div>
+          ${rating ? `<div class="pcard-rating"><span class="stars">${stars}</span><span class="rating-count">(${reviews ? reviews.toLocaleString() : '?'})</span></div>` : ''}
+          <div class="pcard-name">${name}</div>
+          <div class="pcard-footer">
+            <div class="pcard-price ${hasSale ? 'has-sale' : ''}">${price}</div>
+            <div class="shop-btn">Shop →</div>
+          </div>
+        </div>
+      </a>
+    `;
+  }).join('');
+
+  section.style.display = 'block';
+}
+
+function showEmpty(msg) {
+  const es = document.getElementById('emptyState');
+  if (msg) es.querySelector('.empty-sub').textContent = msg;
+  es.style.display = 'flex';
+  document.getElementById('results-badge').style.display = 'none';
+}
+</script>
+</body>
+</html>
